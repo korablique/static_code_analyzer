@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <stdbool.h>
-#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pcre.h>
@@ -11,37 +9,13 @@
 // '|' - или
 //[^A-Za-z0-9_](for|while|if|int main) *\(
 
-
-/*
- * найти иф с помощью регулярки, найти конец ифа
-if (true) {
-	while (true) {
-		for () {
-			int a = 0;
-			if (a > b) {
-				int c = 0;
-			}
-		}
-	}
-}
-print(asd);
-
-считать весь файл в одну строчку,
-ищем if регуляркой,
-идем по символам от начала if'а, найти первую {,
-    найти соответствующую ей }
-    (нужен счетчик, который увеличивается, когда скобка открылась и уменьшается, когда закрылась)
-вывести этот if
-(возможно, регулярка не сможет посмотреть за пределы \n => если что, заменить все \n на пробелы)
- */
-
 int main(int argc, char **argv) {
     if (argc < 1) {
         printf("File path should be in command line\n");
         abort();
     }
 
-    // reading file to string
+    // read file to string
     FILE* input_file = fopen(argv[1], "rb");
     fseek(input_file, 0, SEEK_END);
     long file_size = ftell(input_file);
@@ -53,54 +27,108 @@ int main(int argc, char **argv) {
 
     input_string[file_size] = 0; // make null terminated C string
 
-    const char* error = (char*) malloc(sizeof(char) * 500);  // Where to put an error message
+    const char* error = (char*) malloc(sizeof(char) * 500);  // Where to put an error message // TODO needed 2nd error[] for statements?
     int error_offset;    // Offset in pattern where error was found
-    char pattern[] = "[^A-Za-z0-9_](for|while|if|int main) *\\(";
+    char block_pattern[] = "[^A-Za-z0-9_](for|while|if|int main) *\\(";
+    char statement_pattern[] = ".+;";
 
     // regex compilation
-    pcre* compiled_regex = pcre_compile(pattern, 0, &error, &error_offset, NULL);
-    if (compiled_regex == NULL) {
+    pcre *compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
+    if (compiled_block_regex == NULL) {
         printf("PCRE compilation failed");
     }
 
-    // compare with regex string
-    int result_size = 33; // a multiple of 3
-    int result[result_size];
-    int start_i = 0;
-    int result_code = pcre_exec(compiled_regex, NULL,
-                                input_string, strlen(input_string),
-                                start_i, 0,
-                                result, result_size);
-    if (result_code < 0) {
-        printf("No match");
+    pcre *compiled_statement_regex = pcre_compile(statement_pattern, 0, &error, &error_offset, NULL);
+    if (compiled_block_regex == NULL) {
+        printf("PCRE compilation failed");
     }
 
-    // find end of if
-    int start_if_index = result[0];
-    int opening_brace_counter = 0;
-    int end_if_index = -1;
-    for (int i = start_if_index; i < file_size; ++i) {
-        // find '}'
-        if (input_string[i] == '{') {
-            ++opening_brace_counter;
-        } else if (input_string[i] == '}') {
-            --opening_brace_counter;
-            if (opening_brace_counter == 0) {
-                end_if_index = i;
-                break;
+    int start_i = 0;
+    char** entities = (char**) malloc(sizeof(char*) * 1000);
+    for (int i = 0; i < 1000; ++i) {
+        entities[i] = (char*) malloc(sizeof(char) * 1000);
+    }
+//    char entities[1000][1000] = {0};
+    int entities_i = 0;
+    while (start_i < strlen(input_string)) {
+//    for (int input_str_i = 0; input_str_i < strlen(input_string); ++input_str_i) {
+        // compare with regex string
+        int result_size = 33; // a multiple of 3
+        int block_result[result_size];
+        int statement_result[result_size];
+        int statement_result_code = pcre_exec(compiled_statement_regex, NULL,
+                                              input_string, strlen(input_string),
+                                              start_i, 0,
+                                              statement_result, result_size);
+
+        int block_result_code = pcre_exec(compiled_block_regex, NULL,
+                                          input_string, strlen(input_string),
+                                          start_i, 0,
+                                          block_result, result_size);
+        // TODO: need this?
+//        if (block_result_code < 0) {
+//            printf("No block match");
+//        }
+
+        // find end of if
+        int block_start_index = block_result[0];
+        int opening_brace_counter = 0;
+        int block_end_index = -1;
+        // if block found, find its end
+        if (block_result > 0) {
+            for (int i = block_start_index; i < file_size; ++i) {
+                // find '}'
+                if (input_string[i] == '{') {
+                    ++opening_brace_counter;
+                } else if (input_string[i] == '}') {
+                    --opening_brace_counter;
+                    if (opening_brace_counter == 0) {
+                        block_end_index = i + 1; // чтоб он указывал на позицию ЗА последним символом блока
+                        break;
+                    }
+                }
             }
         }
+
+        // check if it is statement and block or just for
+        // TODO что если блоков вообще нет?
+        int statement_start_index = statement_result[0];
+        int statement_end_index = statement_result[1];
+        // skip spaces at the start of statement
+        for (int i = statement_start_index; i < statement_end_index; ++i) {
+            if (input_string[i] == ' ') {
+                ++statement_start_index;
+            } else {
+                break; // ++statement_start_index, чтоб уж все убрать
+            }
+        }
+        int statement_size = statement_end_index - statement_start_index;
+        // если индекс стейтмента < индекса блока, то это стейтмент, и его можно вырезать (записать стейтмент в массив строк (всех))
+        if (statement_start_index < block_start_index || block_result_code < 0) {
+            for (int str_i = statement_start_index, buf_i = 0; str_i < statement_end_index && buf_i < statement_size; ++str_i, ++buf_i) {
+                entities[entities_i][buf_i] = input_string[str_i];
+            }
+            entities[entities_i][statement_size] = '\0';
+            start_i = statement_end_index;
+        } else if (statement_start_index >= block_start_index || statement_result_code < 0) {
+            // если индекс блока меньше, то это for - тоже записать в массив строк
+            int block_size = block_end_index - block_start_index;
+            for (int str_i = block_start_index, buf_i = 0; str_i < block_end_index && buf_i < block_size; ++str_i, ++buf_i) {
+                entities[entities_i][buf_i] = input_string[str_i];
+            }
+            entities[entities_i][block_size] = '\0';
+            start_i = block_end_index;
+        }
+        ++entities_i;
     }
 
-    int if_size = end_if_index - start_if_index + 1;
-    char buffer[if_size + 1];
-    buffer[if_size] = '\0';
-    for (int string_i = start_if_index, buf_i = 0; string_i <= end_if_index, buf_i < if_size; ++string_i, ++buf_i) {
-        buffer[buf_i] = input_string[string_i];
+    // print
+    for (int entity_number = 0; entity_number < entities_i; ++entity_number) {
+        printf("Entity %d:\n%s\n", entity_number + 1, entities[entity_number]);
     }
-    printf("%s", buffer);
+
     // at the end
-    pcre_free(compiled_regex);
+    pcre_free(compiled_block_regex);
 
 
 
