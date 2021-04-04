@@ -12,13 +12,13 @@
 pcre *compiled_block_regex;
 pcre *compiled_statement_regex;
 
-void PrintTabs(int number_of_tabs) {
+void PrintTabs(int number_of_tabs, FILE* file) {
     for (int i = 0; i < number_of_tabs; ++i) {
-        printf("\t");
+        fprintf(file, "\t");
     }
 }
 
-void Print(ENTITY* node, int depth) {
+void Print(ENTITY* node, int depth, FILE* file) {
     if (node->was) {
         return;
     }
@@ -26,23 +26,23 @@ void Print(ENTITY* node, int depth) {
     if (node->statement != NULL) {
         // print statement
         if (strcmp(node->statement->string, "") != 0) {
-            PrintTabs(depth);
-            printf("%s\n", node->statement->string);
+            PrintTabs(depth, file);
+            fprintf(file, "%s\n", node->statement->string);
         }
     } else {
-        PrintTabs(depth);
+        PrintTabs(depth, file);
         if (depth != -1) {
-            printf("%s\n", node->block->head);
-            PrintTabs(depth);
-            printf("{\n");
+            fprintf(file, "%s\n", node->block->head);
+            PrintTabs(depth, file);
+            fprintf(file, "{\n");
         }
         for (int i = 0; i < node->block->children.size; ++i) {
             ENTITY entity = GetFromVectorEntity(&(node->block->children), i);
-            Print(&entity, depth + 1);
+            Print(&entity, depth + 1, file);
         }
-        PrintTabs(depth);
+        PrintTabs(depth, file);
         if (depth != -1) {
-            printf("}\n");
+            fprintf(file, "}\n");
         }
     }
 }
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
     // '|' - or
     const char* error = (char*) malloc(sizeof(char) * BIG_NUM);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
-    char block_pattern1[] = "[^A-Za-z0-9_](for|while|else if|if|int main) *\\(";
+    char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
     char block_pattern2[] = "[^A-Za-z0-9_]else *{";
     char block_pattern[BIG_NUM];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
@@ -221,11 +221,11 @@ int main(int argc, char **argv) {
     VectorEntity entities = GetEntities(input_string);
     BLOCK root = {"", "", entities};
     ENTITY root_entity = {NULL, &root};
-    Print(&root_entity, -1);
 
+    FILE* output_file = fopen(argv[1], "w");
+    Print(&root_entity, -1, output_file);
+    fclose(output_file);
     // at the end
     pcre_free(compiled_block_regex);
     return 0;
 }
-
-
