@@ -1,3 +1,4 @@
+int main() {    
     FILE* file_input = fopen(argv[1], "r");
 
     if (true) {
@@ -23,9 +24,12 @@
 
     if (newCheck) {
         print(a);
-    } else {
+    } else if (nextCheck) {
         print(b);
+    } else {
+        print(c);
     }
 
     int while1 = 1;
     return 0;
+}

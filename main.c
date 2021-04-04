@@ -12,22 +12,38 @@
 pcre *compiled_block_regex;
 pcre *compiled_statement_regex;
 
-void Print(ENTITY* node) {
+void PrintTabs(int number_of_tabs) {
+    for (int i = 0; i < number_of_tabs; ++i) {
+        printf("\t");
+    }
+}
+
+void Print(ENTITY* node, int depth) {
     if (node->was) {
         return;
     }
     node->was = true;
     if (node->statement != NULL) {
         // print statement
-        printf("%s\n", node->statement->string);
-    } else {
-        printf("%s {\n", node->block->head);
-        for (int i = 0; i < node->block->children.size; ++i) {
-//            Print(&node->block->children[i]);
-            ENTITY entity = GetFromVectorEntity(&(node->block->children), i);
-            Print(&entity);
+        if (strcmp(node->statement->string, "") != 0) {
+            PrintTabs(depth);
+            printf("%s\n", node->statement->string);
         }
-        printf("\n}\n");
+    } else {
+        PrintTabs(depth);
+        if (depth != -1) {
+            printf("%s\n", node->block->head);
+            PrintTabs(depth);
+            printf("{\n");
+        }
+        for (int i = 0; i < node->block->children.size; ++i) {
+            ENTITY entity = GetFromVectorEntity(&(node->block->children), i);
+            Print(&entity, depth + 1);
+        }
+        PrintTabs(depth);
+        if (depth != -1) {
+            printf("}\n");
+        }
     }
 }
 
@@ -38,19 +54,27 @@ char* Substring(char* source, int start, int end) {
     if (start >= end) {
         return "";
     }
-    char* dest = (char*) malloc(sizeof(char) * (end - start + 1));
-    dest[end] = '\0';
-    for (int source_i = start, dest_i = 0; source_i < end && dest_i < end - start; ++source_i, ++dest_i) {
-        dest[dest_i] = source[source_i];
+    int distance = end - start;
+    char* dest = (char*) malloc(sizeof(char) * (distance + 1));
+    for (int i = 0; i < distance; ++i) {
+        dest[i] = source[i + start];
     }
+    dest[distance] = '\0';
     return dest;
 }
 
-// regex для for, while, main, if
-// [^A-Za-z0-9_] - класс символов, кроме этих (^ - отрицание)
-// ' *' - неопределённое кол-во пробелов
-// '|' - или
-//[^A-Za-z0-9_](for|while|if|int main) *\(
+int GetNotSpaceCharIndex(const char* source, int start, int end) {
+    if (source[start] == ' ' || source[start] == '\n' || source[start] == '\t') {
+        for (int i = start; i < end; ++i) {
+            if (source[i] != ' ' && source[i] != '\n' && source[i] != '\t') {
+                break;
+            }
+            ++start;
+        }
+    }
+    return start;
+}
+
 VectorEntity GetEntities(char* string) {
     VectorEntity vector_entity = CreateVectorEntity(&EntityComparator);
     int start_i = 0;
@@ -89,23 +113,22 @@ VectorEntity GetEntities(char* string) {
             }
         }
 
-        // check if there are statement and block or just 'for'
         int statement_start_index = statement_result[0];
         int statement_end_index = statement_result[1];
         // skip spaces at the start of statement
-        if (string[statement_start_index] == ' ') {
-            for (int i = statement_start_index; i < statement_end_index; ++i) {
-                if (string[i] != ' ') {
-                    break;
-                }
-                ++statement_start_index;
-            }
+        statement_start_index = GetNotSpaceCharIndex(string, statement_start_index, statement_end_index);
+        // skip spaces at the start of block
+        block_start_index = GetNotSpaceCharIndex(string, block_start_index, block_end_index);
+        if (string[block_start_index] == '}') {
+            ++block_start_index;
         }
-        // если индекс стейтмента < индекса блока, то это стейтмент, и его можно вырезать (записать стейтмент в массив строк (всех))
+
+        // check if there are statement and block or just 'for'
+        // если индекс стейтмента < индекса блока, то это стейтмент, и его можно положить в вектор
         if (statement_start_index < block_start_index || block_result_code < 0) {
             char* statement_str = Substring(string, statement_start_index, statement_end_index);
             STATEMENT* statement = (STATEMENT*) malloc(sizeof(STATEMENT));
-            statement->string = statement_str; // TODO not sure
+            statement->string = statement_str;
             ENTITY* entity = (ENTITY*) malloc(sizeof(ENTITY));
             entity->statement = statement;
             entity->block = NULL;
@@ -142,7 +165,7 @@ VectorEntity GetEntities(char* string) {
             char* block_inside_str = Substring(block_str, block_inside_start_i, block_inside_end_i);
 
             VectorEntity block_entities = GetEntities(block_inside_str);
-            block->children = block_entities; // TODO: копировать массив?
+            block->children = block_entities;
             ENTITY* entity = (ENTITY*) malloc(sizeof(ENTITY));
             entity->block = block;
             entity->statement = NULL;
@@ -171,9 +194,12 @@ int main(int argc, char **argv) {
     input_string[file_size] = 0; // make null terminated C string
 
     // compile regex statements
+    // [^A-Za-z0-9_] - class of symbols except these ('^' - not)
+    // ' *' - zero or more occurrences of spaces
+    // '|' - or
     const char* error = (char*) malloc(sizeof(char) * BIG_NUM);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
-    char block_pattern1[] = "[^A-Za-z0-9_](for|while|if|int main) *\\(";
+    char block_pattern1[] = "[^A-Za-z0-9_](for|while|else if|if|int main) *\\(";
     char block_pattern2[] = "[^A-Za-z0-9_]else *{";
     char block_pattern[BIG_NUM];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
@@ -192,11 +218,10 @@ int main(int argc, char **argv) {
     }
 
     // print
-    int entities_array_size = -1;
     VectorEntity entities = GetEntities(input_string);
     BLOCK root = {"", "", entities};
     ENTITY root_entity = {NULL, &root};
-    Print(&root_entity);
+    Print(&root_entity, -1);
 
     // at the end
     pcre_free(compiled_block_regex);
