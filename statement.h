@@ -1,0 +1,8 @@
+#ifndef STATIC_CODE_ANALYSER_STATEMENT_H
+#define STATIC_CODE_ANALYSER_STATEMENT_H
+
+typedef struct Statement {
+    char* string;
+}STATEMENT;
+
+#endif //STATIC_CODE_ANALYSER_STATEMENT_H
