@@ -3,11 +3,13 @@ project(static_code_analyser C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(static_code_analyser main.c
+add_executable(static_code_analyser
+        main.c
         block.c block.h
         statement.c statement.h
         entity.c entity.h
-        cvector.c cvector.h)
+        cvector.c cvector.h
+        string_functions.c string_functions.h)
 
 find_library(PCRE_LIBRARY pcre)
-target_link_libraries(static_code_analyser ${PCRE_LIBRARY})
+target_link_libraries(static_code_analyser PRIVATE ${PCRE_LIBRARY} m)

@@ -11,6 +11,9 @@ typedef struct Block {
     char* string;
     char* head;
     VectorEntity children;
+    bool is_loop;
 }BLOCK;
 
 #endif //STATIC_CODE_ANALYSER_BLOCK_H
+
+bool IsLoop(BLOCK* block);

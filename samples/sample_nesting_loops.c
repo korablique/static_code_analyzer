@@ -1,12 +1,12 @@
 int main() {    
     FILE* file_input = fopen(argv[1], "r");
 
-    if (true) {
+    while (true) {
         int a = 5;
         while (a < 10) {
             ++a;
         }
-        if (a) {
+        while (a) {
             for (;;) {
                 if (a < b) {
                     b == a;

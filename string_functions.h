@@ -1,0 +1,6 @@
+#ifndef STATIC_CODE_ANALYSER_STRING_FUNCTIONS_H
+#define STATIC_CODE_ANALYSER_STRING_FUNCTIONS_H
+
+char* Substring(char* source, int start, int end);
+
+#endif //STATIC_CODE_ANALYSER_STRING_FUNCTIONS_H

@@ -3,14 +3,27 @@
 #include <string.h>
 #include <pcre.h>
 #include <stdbool.h>
+#include <math.h>
 #include "entity.h"
 #include "block.h"
 #include "statement.h"
+#include "string_functions.h"
 
 #define BIG_NUM 400     // TODO: rename
 
 pcre *compiled_block_regex;
 pcre *compiled_statement_regex;
+
+int GetMaxNestingOfLoops(ENTITY* node) {
+    if (node->statement != NULL) {
+        return 0;
+    }
+    int answer = 0;
+    for (int i = 0; i < node->block->children.size; ++i) {
+        answer = fmax(answer, IsLoop(node->block) + GetMaxNestingOfLoops(&node->block->children.array[i]));
+    }
+    return answer;
+}
 
 void PrintTabs(int number_of_tabs, FILE* file) {
     for (int i = 0; i < number_of_tabs; ++i) {
@@ -45,22 +58,6 @@ void Print(ENTITY* node, int depth, FILE* file) {
             fprintf(file, "}\n");
         }
     }
-}
-
-/**
- * return substring as [)
- */
-char* Substring(char* source, int start, int end) {
-    if (start >= end) {
-        return "";
-    }
-    int distance = end - start;
-    char* dest = (char*) malloc(sizeof(char) * (distance + 1));
-    for (int i = 0; i < distance; ++i) {
-        dest[i] = source[i + start];
-    }
-    dest[distance] = '\0';
-    return dest;
 }
 
 int GetNotSpaceCharIndex(const char* source, int start, int end) {
@@ -162,6 +159,10 @@ VectorEntity GetEntities(char* string) {
             block->head = (char*) malloc(sizeof(char) * strlen(head));
             strcpy(block->head, head);
 
+            // check block type to set is_loop field
+            bool is_loop = IsLoop(block);
+            block->is_loop = is_loop;
+
             char* block_inside_str = Substring(block_str, block_inside_start_i, block_inside_end_i);
 
             VectorEntity block_entities = GetEntities(block_inside_str);
@@ -209,12 +210,12 @@ int main(int argc, char **argv) {
     // regex compilation
     compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
     if (compiled_block_regex == NULL) {
-        printf("PCRE compilation failed");
+        printf("PCRE compilation failed: %s\n", error);
     }
 
     compiled_statement_regex = pcre_compile(statement_pattern, 0, &error, &error_offset, NULL);
     if (compiled_block_regex == NULL) {
-        printf("PCRE compilation failed");
+        printf("PCRE compilation failed: %s\n", error);
     }
 
     // print
@@ -224,7 +225,9 @@ int main(int argc, char **argv) {
 
     FILE* output_file = fopen(argv[1], "w");
     Print(&root_entity, -1, output_file);
+    printf("max nesting: %d", GetMaxNestingOfLoops(&root_entity));
     fclose(output_file);
+    
     // at the end
     pcre_free(compiled_block_regex);
     return 0;
