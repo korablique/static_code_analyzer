@@ -8,6 +8,7 @@
 #include "block.h"
 #include "statement.h"
 #include "string_functions.h"
+#include "test.h"
 
 #define BIG_NUM 400     // TODO: rename
 
@@ -28,6 +29,8 @@ int GetMaxNestingOfLoops(ENTITY* node) {
 void PrintTabs(int number_of_tabs, FILE* file) {
     for (int i = 0; i < number_of_tabs; ++i) {
         fprintf(file, "\t");
+        printf("\t");
+
     }
 }
 
@@ -41,13 +44,16 @@ void Print(ENTITY* node, int depth, FILE* file) {
         if (strcmp(node->statement->string, "") != 0) {
             PrintTabs(depth, file);
             fprintf(file, "%s\n", node->statement->string);
+            printf("%s\n", node->statement->string);
         }
     } else {
         PrintTabs(depth, file);
         if (depth != -1) {
             fprintf(file, "%s\n", node->block->head);
+            printf("%s\n", node->block->head);
             PrintTabs(depth, file);
             fprintf(file, "{\n");
+            printf("{\n");
         }
         for (int i = 0; i < node->block->children.size; ++i) {
             ENTITY entity = GetFromVectorEntity(&(node->block->children), i);
@@ -56,6 +62,7 @@ void Print(ENTITY* node, int depth, FILE* file) {
         PrintTabs(depth, file);
         if (depth != -1) {
             fprintf(file, "}\n");
+            printf("}\n");
         }
     }
 }
@@ -182,6 +189,12 @@ int main(int argc, char **argv) {
         abort();
     }
 
+    if (argc > 2 && strcmp(argv[2], "test") == 0) {
+        printf("Run tests\n");
+        Test();
+        return 0;
+    }
+
     // read file to string
     FILE* input_file = fopen(argv[1], "rb");
     fseek(input_file, 0, SEEK_END);
@@ -193,6 +206,7 @@ int main(int argc, char **argv) {
     fclose(input_file);
 
     input_string[file_size] = 0; // make null terminated C string
+    Replace(input_string, '\n', ' ');
 
     // compile regex statements
     // [^A-Za-z0-9_] - class of symbols except these ('^' - not)
@@ -204,8 +218,7 @@ int main(int argc, char **argv) {
     char block_pattern2[] = "[^A-Za-z0-9_]else *{";
     char block_pattern[BIG_NUM];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
-
-    char statement_pattern[] = ".+;";
+    char statement_pattern[] = "[^;]+;";
 
     // regex compilation
     compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
@@ -227,7 +240,7 @@ int main(int argc, char **argv) {
     Print(&root_entity, -1, output_file);
     printf("max nesting: %d", GetMaxNestingOfLoops(&root_entity));
     fclose(output_file);
-    
+
     // at the end
     pcre_free(compiled_block_regex);
     return 0;
