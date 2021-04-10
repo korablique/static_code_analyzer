@@ -79,6 +79,48 @@ int GetNotSpaceCharIndex(const char* source, int start, int end) {
     return start;
 }
 
+/**
+ * Skip spaces at the start of block, find end of block by its closing curly brace.
+ * So get start and end of block (with its head).
+ * @param source source string
+ * @param block_start_index pointer to integer, where to save result
+ * @param block_end_index (same)
+ */
+void GetBlockBounds(const char *source, int *block_start_index, int *block_end_index) {
+    int opening_brace_counter = 0; // if block found, find its end
+    for (int i = (*block_start_index); i < strlen(source); ++i) {
+        // find '}'
+        if (source[i] == '{') {
+            ++opening_brace_counter;
+        } else if (source[i] == '}') {
+            --opening_brace_counter;
+            if (opening_brace_counter == 0) {
+                (*block_end_index) = i + 1; // чтоб он указывал на позицию ЗА последним символом блока
+                break;
+            }
+        }
+    }
+    // skip spaces at the start of block
+    *block_start_index = GetNotSpaceCharIndex(source, *block_start_index, *block_end_index);
+    if ((*source)[block_start_index] == '}') {
+        ++block_start_index;
+    }
+}
+
+void GetBlockInsideIndices(const char *block_str, int *block_inside_start_i, int *block_inside_end_i) {
+    bool found_block_inside_start = false;
+    for (int block_i = 0; block_i < strlen(block_str); ++block_i) {
+        if (block_str[block_i] == '{') {
+            if (!found_block_inside_start) {
+                (*block_inside_start_i) = block_i + 1;
+                found_block_inside_start = true;
+            }
+        } else if (block_str[block_i] == '}') {
+            (*block_inside_end_i) = block_i;
+        }
+    }
+}
+
 VectorEntity GetEntities(char* string) {
     VectorEntity vector_entity = CreateVectorEntity(&EntityComparator);
     int start_i = 0;
@@ -99,37 +141,20 @@ VectorEntity GetEntities(char* string) {
 
         // find end of block
         int block_start_index = block_result[0];
-        int opening_brace_counter = 0;
         int block_end_index = -1;
-        // if block found, find its end
         if (block_result > 0) {
-            for (int i = block_start_index; i < strlen(string); ++i) {
-                // find '}'
-                if (string[i] == '{') {
-                    ++opening_brace_counter;
-                } else if (string[i] == '}') {
-                    --opening_brace_counter;
-                    if (opening_brace_counter == 0) {
-                        block_end_index = i + 1; // чтоб он указывал на позицию ЗА последним символом блока
-                        break;
-                    }
-                }
-            }
+            GetBlockBounds(string, &block_start_index, &block_end_index);
         }
 
         int statement_start_index = statement_result[0];
         int statement_end_index = statement_result[1];
         // skip spaces at the start of statement
         statement_start_index = GetNotSpaceCharIndex(string, statement_start_index, statement_end_index);
-        // skip spaces at the start of block
-        block_start_index = GetNotSpaceCharIndex(string, block_start_index, block_end_index);
-        if (string[block_start_index] == '}') {
-            ++block_start_index;
-        }
 
         // check if there are statement and block or just 'for'
-        // если индекс стейтмента < индекса блока, то это стейтмент, и его можно положить в вектор
-        if (statement_start_index < block_start_index || block_result_code < 0) {
+        bool is_statement = statement_start_index < block_start_index || block_result_code < 0;
+        bool is_block = statement_start_index >= block_start_index || statement_result_code < 0;
+        if (is_statement) {
             char* statement_str = Substring(string, statement_start_index, statement_end_index);
             STATEMENT* statement = (STATEMENT*) malloc(sizeof(STATEMENT));
             statement->string = statement_str;
@@ -138,8 +163,7 @@ VectorEntity GetEntities(char* string) {
             entity->block = NULL;
             PushBackVectorEntity(&vector_entity, *entity);
             start_i = statement_end_index;
-        } else if (statement_start_index >= block_start_index || statement_result_code < 0) {
-            // если индекс блока меньше, то это for - тоже записать в массив строк
+        } else if (is_block) {
             char* block_str = Substring(string, block_start_index, block_end_index);
 
             BLOCK* block = (BLOCK*) malloc(sizeof(BLOCK));
@@ -149,18 +173,8 @@ VectorEntity GetEntities(char* string) {
 
             // find inside of block
             int block_inside_start_i = -1;
-            bool found_block_inside_start = false;
             int block_inside_end_i = -1;
-            for (int block_i = 0; block_i < strlen(block_str); ++block_i) {
-                if (block_str[block_i] == '{') {
-                    if (!found_block_inside_start) {
-                        block_inside_start_i = block_i + 1;
-                        found_block_inside_start = true;
-                    }
-                } else if (block_str[block_i] == '}') {
-                    block_inside_end_i = block_i;
-                }
-            }
+            GetBlockInsideIndices(block_str, &block_inside_start_i, &block_inside_end_i);
 
             char* head = Substring(block_str, 0, block_inside_start_i - 1);
             block->head = (char*) malloc(sizeof(char) * strlen(head));
@@ -215,7 +229,7 @@ int main(int argc, char **argv) {
     const char* error = (char*) malloc(sizeof(char) * BIG_NUM);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
     char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
-    char block_pattern2[] = "[^A-Za-z0-9_]else *{";
+    char block_pattern2[] = "[^A-Za-z0-9_]else *{?";
     char block_pattern[BIG_NUM];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
     char statement_pattern[] = "[^;]+;";
