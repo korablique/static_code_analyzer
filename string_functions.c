@@ -25,3 +25,37 @@ void Replace(char* string, char old_char, char new_char) {
         }
     }
 }
+
+int SkipSpaces(const char* source, int start, int end) {
+    if (source[start] == ' ' || source[start] == '\n' || source[start] == '\t') {
+        for (int i = start; i < end; ++i) {
+            if (source[i] != ' ' && source[i] != '\n' && source[i] != '\t') {
+                break;
+            }
+            ++start;
+        }
+    }
+    return start;
+}
+
+int SkipSpacesR(const char* source, int start, int end) {
+    --end;
+    if (source[end] == ' ' || source[end] == '\n' || source[end] == '\t') {
+        for (int i = end; i >= start; --i) {
+            if (source[i] != ' ' && source[i] != '\n' && source[i] != '\t') {
+                break;
+            }
+            --end;
+        }
+    }
+    return end;
+}
+
+int Find(char symbol, char* source, int start_index) {
+    for (int i = start_index; i < strlen(source); ++i) {
+        if (source[i] == symbol) {
+            return i;
+        }
+    }
+    return -1;
+}

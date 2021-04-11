@@ -17,3 +17,4 @@ typedef struct Block {
 #endif //STATIC_CODE_ANALYSER_BLOCK_H
 
 bool IsLoop(BLOCK* block);
+bool HasHead(char* block_string);
