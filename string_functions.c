@@ -1,6 +1,8 @@
 #include "string_functions.h"
 #include <stdlib.h>
 #include <memory.h>
+#include <stdio.h>
+#include <stdbool.h>
 
 /**
  * return substring as [)
@@ -26,6 +28,34 @@ void Replace(char* string, char old_char, char new_char) {
     }
 }
 
+/**
+ * Replace all newlines except after strings starting with #
+ * @param source
+ * @param old_char
+ * @param new_char
+ */
+void ReplaceExcept(char* source, char old_char, char new_char) {
+    bool need_replace = true;
+    for (int i = 0; i < strlen(source); ++i) {
+        if (source[i] == '#') {
+            need_replace = false;
+        }
+        if (source[i] == old_char) {
+            if (need_replace) {
+                source[i] = new_char;
+            } else {
+                need_replace = true;
+            }
+        }
+    }
+}
+
+/**
+ * @param source
+ * @param start
+ * @param end points after the requiring char
+ * @return first not space char index
+ */
 int SkipSpaces(const char* source, int start, int end) {
     if (source[start] == ' ' || source[start] == '\n' || source[start] == '\t') {
         for (int i = start; i < end; ++i) {

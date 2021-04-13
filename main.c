@@ -14,6 +14,7 @@
 
 pcre *compiled_block_regex;
 pcre *compiled_statement_regex;
+pcre *compiled_directive_regex;
 
 int GetMaxNestingOfLoops(ENTITY* node) {
     if (node->statement != NULL) {
@@ -115,6 +116,7 @@ VectorEntity GetEntities(char* string) {
         int result_size = 33; // a multiple of 3
         int block_result[result_size];
         int statement_result[result_size];
+        int directive_result[result_size];
         int statement_result_code = pcre_exec(compiled_statement_regex, NULL,
                                               string, strlen(string),
                                               start_i, 0,
@@ -125,6 +127,11 @@ VectorEntity GetEntities(char* string) {
                                           start_i, 0,
                                           block_result, result_size);
 
+        int directive_result_code = pcre_exec(compiled_directive_regex, NULL,
+                                          &string[start_i], strlen(&string[start_i]),
+                                          0, 0,
+                                          directive_result, result_size);
+
         int block_start_index = block_result[0]; // TODO если блок не найден, можно задать бесконечность
         block_start_index = SkipSpaces(string, block_start_index, strlen(string));
 
@@ -133,10 +140,29 @@ VectorEntity GetEntities(char* string) {
         // skip spaces at the start of statement
         statement_start_index = SkipSpaces(string, statement_start_index, statement_end_index);
 
+        int directive_start_index = -1;
+        int directive_end_index = -1;
+        if (directive_result_code > 0) {
+            directive_start_index = directive_result[0] + start_i;
+            directive_start_index = SkipSpaces(string, directive_start_index, strlen(string));
+            directive_end_index = Find('\n', string, directive_start_index);
+        }
+
         // check if there are statement and block or just 'for'
+        bool is_directive = directive_result_code > 0 && directive_start_index < block_start_index;
         bool is_statement = statement_start_index < block_start_index || block_result_code < 0;
         bool is_block = statement_start_index >= block_start_index || statement_result_code < 0;
-        if (is_statement) {
+        if (is_directive) {
+            // обрабатывается как statement TODO убрать дублирование
+            char* directive_str = Substring(string, directive_start_index, directive_end_index);
+            STATEMENT* directive = (STATEMENT*) malloc(sizeof(STATEMENT));
+            directive->string = directive_str;
+            ENTITY* entity = (ENTITY*) malloc(sizeof(ENTITY));
+            entity->statement = directive;
+            entity->block = NULL;
+            PushBackVectorEntity(&vector_entity, *entity);
+            start_i = directive_end_index + 1; // after '\n'
+        } else if (is_statement) {
             char* statement_str = Substring(string, statement_start_index, statement_end_index);
             STATEMENT* statement = (STATEMENT*) malloc(sizeof(STATEMENT));
             statement->string = statement_str;
@@ -156,12 +182,7 @@ VectorEntity GetEntities(char* string) {
                 ++block_head_end_index;
             } else {
                 // head will contain only "else"
-                for (int i = block_start_index; i < strlen(string); ++i) {  // TODO: некрасиво
-                    if (string[i] == ' ' || string[i] == '\n' || string[i] == '\t') {
-                        block_head_end_index = i;
-                        break;
-                    }
-                }
+                block_head_end_index = SkipSpacesR(string, block_start_index, block_result[1]);
             }
             char *head = Substring(string, block_start_index, block_head_end_index);
             block->head = (char *) malloc(sizeof(char) * strlen(head));
@@ -228,7 +249,7 @@ int main(int argc, char **argv) {
     fclose(input_file);
 
     input_string[file_size] = 0; // make null terminated C string
-    Replace(input_string, '\n', ' ');
+    ReplaceExcept(input_string, '\n', ' ');
 
     // compile regex statements
     // [^A-Za-z0-9_] - class of symbols except these ('^' - not)
@@ -240,17 +261,25 @@ int main(int argc, char **argv) {
     char block_pattern2[] = "[^A-Za-z0-9_]else *{?";
     char block_pattern[BIG_NUM];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
+
     char statement_pattern[] = "[^;]+;";
+//    char directive_pattern[] = "^#[A-Za-z]|[^\"]#[A-Za-z]"; // # в начале строки либо не в кавычках
+    char directive_pattern[] = "^( |\\t)*#[A-Za-z]";
 
     // regex compilation
     compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
     if (compiled_block_regex == NULL) {
-        printf("PCRE compilation failed: %s\n", error);
+        printf("PCRE block compilation failed: %s\n", error);
     }
 
     compiled_statement_regex = pcre_compile(statement_pattern, 0, &error, &error_offset, NULL);
-    if (compiled_block_regex == NULL) {
-        printf("PCRE compilation failed: %s\n", error);
+    if (compiled_statement_regex == NULL) {
+        printf("PCRE statement compilation failed: %s\n", error);
+    }
+
+    compiled_directive_regex = pcre_compile(directive_pattern, 0, &error, &error_offset, NULL);
+    if (compiled_directive_regex == NULL) {
+        printf("PCRE directive compilation failed: %s\n", error);
     }
 
     // print
@@ -265,5 +294,7 @@ int main(int argc, char **argv) {
 
     // at the end
     pcre_free(compiled_block_regex);
+    pcre_free(compiled_statement_regex);
+    pcre_free(compiled_directive_regex);
     return 0;
 }
