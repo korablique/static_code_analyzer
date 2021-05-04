@@ -3,6 +3,29 @@
 #include <stdlib.h>
 #include "test.h"
 #include "string_functions.h"
+#include "block.h"
+#include "print.h"
+#include "parser.h"
+
+void RunStaticAnalyser(char *input, char* file_path) {
+    VectorEntity entities = GetEntities(input);
+    BLOCK root = {"", "", entities};
+    ENTITY root_entity = {NULL, &root};
+    FILE* file = fopen(file_path, "w");
+    PrintImpl(&root_entity, -1, file, false);
+    fclose(file);
+}
+
+char* ReadFile(char* file_path) {
+    FILE* file = fopen(file_path, "rb");
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    char* result = malloc(sizeof(char) * (file_size + 1));
+    fread(result, sizeof(char), file_size, file);
+    fclose(file);
+    return result;
+}
 
 void ReplaceTest() {
     char str[] = "abc\ndef\n";
@@ -60,8 +83,62 @@ void ReplaceExceptTest() {
     }
 }
 
+void GetBoundsTest() {
+    char string[] = "if (new_check) {\n\tprint(a);\n} else {\n\tprint(c);\n}";
+//    int start_index1 = -1;
+//    int end_index1 = -1;
+//    int expected_start_index1 = Find('(', string, 0);
+//    int expected_end_index1 = Find(')', string, 0);
+//    GetBounds(string, 0, '(', ')', &start_index1, &end_index1);
+//    if (start_index1 != expected_start_index1 || end_index1 != expected_end_index1) {
+//        printf("GetBoundsTest failed (1)\nExpected: start_index = %d, end_index = %d\nActual: start_index = %d, end_index = %d\n",
+//               expected_start_index1, expected_end_index1, start_index1, end_index1);
+//        abort();
+//    }
+
+    int start_index2;
+    int end_index2;
+    int start_finding = Find('}', string, 0) + 1;
+    int expected_start_index2 = Find('{', string, start_finding);
+    int expected_end_index2 = Find('}', string, start_finding);
+    GetBounds(string, start_finding, '{', '}', &start_index2, &end_index2);
+    if (start_index2 != expected_start_index2 || end_index2 != expected_end_index2) {
+        printf("GetBoundsTest failed (2)\nExpected: start_index = %d, end_index = %d\nActual: start_index = %d, end_index = %d\n",
+               expected_start_index2, expected_end_index2, start_index2, end_index2);
+        abort();
+    }
+}
+
+void ElseTest() {
+    char input[] = "if(a == b) {\n\ta = b;\n} else {\n\tj = asd;\n\twhile(a) {\n\t\tc = b;\n\t}\n}";
+    RunStaticAnalyser(input, "/tmp/static_code_analyser_test1.c");
+    char* result = ReadFile("/tmp/static_code_analyser_test1.c");
+
+    char expected_result[] = "if(a == b)\n{\n\ta = b;\n}\nelse\n{\n\tj = asd;\n\twhile(a)\n\t{\n\t\tc = b;\n\t}\n}\n";
+    if (strcmp(expected_result, result) != 0) {
+        printf("ElseTest failed:\n%s\n\n----\n\n%s", input, result);
+        abort();
+    }
+}
+
+void OneLineBlocksTest() {
+    char input[] = "int main() {\n\tint a = 5;\n\twhile (a > 0) \n\t\t--a;\n\tif (is_true) \n\t\tprint(a);\n\telse if (is_false) print(b);\n\telse f();\n}";
+    RunStaticAnalyser(input, "/tmp/static_code_analyser_test2.c");
+    char* result = ReadFile("/tmp/static_code_analyser_test2.c");
+
+    char expected_result[] = "int main()\n{\n\tint a = 5;\n\twhile (a > 0)\n\t{\n\t\t--a;\n\t}\n\tif (is_true)\n\t{\n\t\tprint(a);\n\t}\n\telse if (is_false)\n\t{\n\t\tprint(b);\n\t}\n\telse\n\t{\n\t\tf();\n\t}\n}\n";
+    if (strcmp(expected_result, result) != 0) {
+        printf("OneLineBlocksTest failed:\n%s\n\n----\n\n%s", input, result);
+        abort();
+    }
+}
+
 void Test() {
     ReplaceTest();
     SkipSpacesTest();
     ReplaceExceptTest();
+//    GetBoundsTest();
+    ElseTest();
+    OneLineBlocksTest();
+    printf("Tests passed\n");
 }

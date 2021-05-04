@@ -1,7 +1,6 @@
 #include "string_functions.h"
 #include <stdlib.h>
 #include <memory.h>
-#include <stdio.h>
 #include <stdbool.h>
 
 /**
@@ -48,6 +47,18 @@ void ReplaceExcept(char* source, char old_char, char new_char) {
             }
         }
     }
+}
+
+int Skip(char symbol, const char* source, int start, int end) {
+    if (source[start] == symbol) {
+        for (int i = start; i < end; ++i) {
+            if (source[i] != symbol) {
+                break;
+            }
+            ++start;
+        }
+    }
+    return start;
 }
 
 /**

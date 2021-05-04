@@ -21,7 +21,7 @@ char* GetKeyWord(char* block_string) {
     if (keyword_result_code < 0) {
         return NULL;
     }
-    char* keyword = Substring(block_string, result[0], result[1]); // TODO надо выделить память?
+    char* keyword = Substring(block_string, result[0], result[1]);
     return keyword;
 }
 
@@ -50,5 +50,45 @@ bool HasHead(char* block_string) {
         return false;
     } else {
         return true;
+    }
+}
+
+/**
+ * Set start and end indices of some code block.
+ * @param source source string. If you want to pass a substring (not from first index of source),
+ * then pass a pointer like that: &source[some_index]
+ * @param source_start where to start find start of block
+ * @param opening_brace
+ * @param closing_brace
+ * @param start_index pointer to integer, where to save result
+ * @param end_index pointer to integer, where to save result
+ */
+void GetBounds(const char *source, int source_start, char opening_brace, char closing_brace,
+               int *start_index, int *end_index) {
+    int unused; // start_index might be not used if we want to get block head, so it is a stub
+    if (start_index == NULL) {
+        start_index = &unused;
+    }
+    int opening_brace_counter = 0;
+    bool opening_brace_found = false;
+    for (int i = source_start; i < strlen(source); ++i) {
+        if (source[i] == opening_brace) {
+            if (!opening_brace_found) {
+                *start_index = i + 1;
+                opening_brace_found = true;
+            }
+            ++opening_brace_counter;
+        } else if (source[i] == closing_brace) {
+            --opening_brace_counter;
+            if (opening_brace_counter == 0) {
+                (*end_index) = i + 1; // index of symbol after closing brace
+                break;
+            }
+        }
+    }
+    // skip spaces at the start of block
+    *start_index = SkipSpaces(source, *start_index, *end_index);
+    if ((*source)[start_index] == closing_brace) { // need for 'else'
+        ++start_index;
     }
 }

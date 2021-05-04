@@ -16,5 +16,8 @@ typedef struct Block {
 
 #endif //STATIC_CODE_ANALYSER_BLOCK_H
 
+char* GetKeyWord(char* block_string);
 bool IsLoop(BLOCK* block);
 bool HasHead(char* block_string);
+void GetBounds(const char *source, int source_start, char opening_brace, char closing_brace,
+               int *start_index, int *end_index);
