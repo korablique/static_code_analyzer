@@ -11,6 +11,6 @@
 #include "statement.h"
 #include "string_functions.h"
 
-VectorEntity GetEntities(char* string);
+VectorEntity GetEntities(char* string, int max_entities);
 
 #endif //STATIC_CODE_ANALYSER_PARSER_H

@@ -46,5 +46,11 @@ void PrintImpl(ENTITY* node, int depth, FILE* file, bool print_to_log) {
             fprintf(file, "}\n");
             if (print_to_log) printf("}\n");
         }
+
+        if (node->block->tail != NULL) {
+            PrintTabs(depth, file, print_to_log);
+            fprintf(file, "%s\n", node->block->tail);
+            if (print_to_log) printf("%s\n", node->block->tail);
+        }
     }
 }

@@ -10,6 +10,7 @@
 typedef struct Block {
     char* string;
     char* head;
+    char* tail;
     VectorEntity children;
     bool is_loop;
 }BLOCK;

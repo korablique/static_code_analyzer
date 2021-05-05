@@ -1,6 +1,8 @@
+#include <limits.h>
 #include "parser.h"
 
-#define BIG_NUM 400     // TODO: rename
+#define ERROR_MSG_SIZE 200
+#define PATTERN_SIZE 400
 
 pcre *compiled_block_regex = NULL;
 pcre *compiled_statement_regex = NULL;
@@ -15,11 +17,11 @@ bool CompileRegexes() {
     // [^A-Za-z0-9_] - class of symbols except these ('^' - not)
     // ' *' - zero or more occurrences of spaces
     // '|' - or
-    const char* error = (char*) malloc(sizeof(char) * BIG_NUM);  // Where to put an error message
+    const char* error = (char*) malloc(sizeof(char) * ERROR_MSG_SIZE);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
     char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
-    char block_pattern2[] = "[^A-Za-z0-9_]else *{?";
-    char block_pattern[BIG_NUM];
+    char block_pattern2[] = "[^A-Za-z0-9_](else|do)[^A-Za-z0-9_]|^(else|do)[^A-Za-z0-9_]";
+    char block_pattern[PATTERN_SIZE];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
 
     char statement_pattern[] = "[^;]+;";
@@ -27,7 +29,7 @@ bool CompileRegexes() {
 
     compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
     if (compiled_block_regex == NULL) {
-        printf("PCRE block compilation failed: %s\n", error);
+        printf("PCRE block compilation failed: %s\n", error); // TODO может тогда вернуть false?
     }
 
     compiled_statement_regex = pcre_compile(statement_pattern, 0, &error, &error_offset, NULL);
@@ -52,11 +54,12 @@ void FreeRegexes() {
     compiled_directive_regex = NULL;
 }
 
-VectorEntity GetEntities(char* string) {
+VectorEntity GetEntities(char* string, int max_entities) {
     bool compiled = CompileRegexes();
     VectorEntity vector_entity = CreateVectorEntity(&EntityComparator);
     int start_i = 0;
-    while (start_i < strlen(string)) {
+    int entity_number = 0;
+    while (start_i < strlen(string) && entity_number < max_entities) {
         // compare with regex string
         int result_size = 33; // a multiple of 3
         int block_result[result_size];
@@ -130,7 +133,7 @@ VectorEntity GetEntities(char* string) {
                 ++block_head_end_index; // index of symbol after head
                 head = Substring(string, block_start_index, block_head_end_index);
             } else {
-                // head will contain only "else"
+                // head will contain only "else" or "do"
                 head = GetKeyWord(&string[block_start_index]);
                 block_head_end_index = block_start_index + strlen(head);
             }
@@ -154,10 +157,23 @@ VectorEntity GetEntities(char* string) {
                 block_inside_end_i = Find(';', string, block_inside_start_i) + 1;
             }
 
-            char *block_str = Substring(string, block_start_index, block_inside_end_i); // todo: probably don't need
+            // if head == "do", add tail to block
+            if (strcmp(head, "do") == 0) {
+                // всё что после do до ";" - это tail
+                int tail_start_i = SkipSpaces(string, block_inside_end_i, strlen(string));
+                int tail_end_i = Find(';', string, tail_start_i) + 1;
+                char* tail = Substring(string, tail_start_i, tail_end_i);
+                block->tail = (char*) malloc(sizeof(char) * strlen(tail));
+                strcpy(block->tail, tail);
+                block_inside_end_i = tail_end_i;
+            } else {
+                block->tail = NULL;
+            }
 
+            char *block_str = Substring(string, block_start_index, block_inside_end_i); // todo: probably don't need
             block->string = (char *) malloc(sizeof(char) * strlen(block_str));
             strcpy(block->string, block_str);
+
             start_i = block_inside_end_i;
 
             block->is_loop = IsLoop(block);
@@ -167,13 +183,19 @@ VectorEntity GetEntities(char* string) {
             }
             char *block_inside_str = Substring(string, block_inside_start_i, block_inside_end_i);
 
-            VectorEntity block_entities = GetEntities(block_inside_str);
+            max_entities = INT_MAX;
+            // if there is one line do/while, there is only one statement after "do"
+            if (strcmp(head, "do") == 0 && next_after_head != '{') {
+                max_entities = 1;
+            }
+            VectorEntity block_entities = GetEntities(block_inside_str, max_entities);
             block->children = block_entities;
             ENTITY *entity = (ENTITY*) malloc(sizeof(ENTITY));
             entity->block = block;
             entity->statement = NULL;
             PushBackVectorEntity(&vector_entity, *entity);
         }
+        ++entity_number;
     }
 
     if (compiled) {

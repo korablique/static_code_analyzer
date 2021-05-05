@@ -32,7 +32,7 @@ bool IsLoop(BLOCK* block) {
         return false;
     }
 
-    if (strcmp(keyword, "for") == 0 || strcmp(keyword, "while") == 0) {
+    if (strcmp(keyword, "for") == 0 || strcmp(keyword, "while") == 0 || strcmp(keyword, "do") == 0) {
         return true;
     } else {
         return false;

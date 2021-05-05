@@ -1,6 +1,7 @@
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "test.h"
 #include "string_functions.h"
 #include "block.h"
@@ -8,8 +9,8 @@
 #include "parser.h"
 
 void RunStaticAnalyser(char *input, char* file_path) {
-    VectorEntity entities = GetEntities(input);
-    BLOCK root = {"", "", entities};
+    VectorEntity entities = GetEntities(input, INT_MAX);
+    BLOCK root = {"", "", NULL, entities};
     ENTITY root_entity = {NULL, &root};
     FILE* file = fopen(file_path, "w");
     PrintImpl(&root_entity, -1, file, false);
@@ -133,6 +134,18 @@ void OneLineBlocksTest() {
     }
 }
 
+void DoWhileOneLineTest() {
+    char input[] = "int main() {\n\tdo a = b;\n\twhile (a < b);\n}\n";
+    RunStaticAnalyser(input, "/tmp/static_code_analyser_test3.c");
+    char* result = ReadFile("/tmp/static_code_analyser_test3.c");
+
+    char expected_result[] = "int main()\n{\n\tdo\n\t{\n\t\ta = b;\n\t}\n\twhile (a < b);\n}\n";
+    if (strcmp(expected_result, result) != 0) {
+        printf("DoWhileOneLineTest failed:\n%s\n\n----\n\n%s", input, result);
+        abort();
+    }
+}
+
 void Test() {
     ReplaceTest();
     SkipSpacesTest();
@@ -140,5 +153,6 @@ void Test() {
 //    GetBoundsTest();
     ElseTest();
     OneLineBlocksTest();
+    DoWhileOneLineTest();
     printf("Tests passed\n");
 }

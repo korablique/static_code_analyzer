@@ -1,12 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pcre.h>
-#include <stdbool.h>
 #include <math.h>
+#include <limits.h>
 #include "entity.h"
 #include "block.h"
-#include "statement.h"
 #include "string_functions.h"
 #include "parser.h"
 #include "print.h"
@@ -49,8 +47,8 @@ int main(int argc, char **argv) {
     ReplaceExcept(input_string, '\n', ' ');
 
     // print
-    VectorEntity entities = GetEntities(input_string);
-    BLOCK root = {"", "", entities};
+    VectorEntity entities = GetEntities(input_string, INT_MAX);
+    BLOCK root = {"", "", NULL, entities};
     ENTITY root_entity = {NULL, &root};
 
     FILE* output_file = fopen(argv[1], "w");
