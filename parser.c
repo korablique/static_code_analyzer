@@ -14,15 +14,14 @@ bool CompileRegexes() {
     }
 
     // compile regex statements
-    // [^A-Za-z0-9_] - class of symbols except these ('^' - not)
-    // ' *' - zero or more occurrences of spaces
-    // '|' - or
     const char* error = (char*) malloc(sizeof(char) * ERROR_MSG_SIZE);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
     char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
+    // pattern for "else" and do-while
     char block_pattern2[] = "[^A-Za-z0-9_]?(else|do)[^A-Za-z0-9_]|^(else|do)[^A-Za-z0-9_]|}else";
+    char function_pattern[] = "(unsigned |long )?(void|int|float|double|char) +[A-Za-z0-9_]+ *\\(";
     char block_pattern[PATTERN_SIZE];
-    snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
+    snprintf(block_pattern, sizeof block_pattern, "%s|%s|%s", block_pattern1, block_pattern2, function_pattern);
 
     char statement_pattern[] = "[^;]+;";
     char directive_pattern[] = "^( |\\t)*#[A-Za-z]";

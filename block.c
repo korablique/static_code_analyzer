@@ -2,11 +2,17 @@
 #include "block.h"
 #include "string_functions.h"
 
+#define PATTERN_SIZE 400
+
 char* GetKeyWord(char* block_string) {
-    char keyword_pattern[] = "^(for|while|if|else if|else|do|int main)";
+    char keyword_pattern[] = "^(for|while|if|else if|else|do)";
+    char function_pattern[] = "(unsigned |long )?(void|int|float|double|char) +[A-Za-z0-9_]+";
+    char pattern[PATTERN_SIZE];
+    snprintf(pattern, sizeof pattern, "%s|%s", keyword_pattern, function_pattern);
+
     const char* error = (char*) malloc(sizeof(char) * 200);
     int error_offset = -1;
-    pcre* compiled_keyword_regex = pcre_compile(keyword_pattern, 0, &error, &error_offset, NULL);
+    pcre* compiled_keyword_regex = pcre_compile(pattern, 0, &error, &error_offset, NULL);
     if (compiled_keyword_regex == NULL) {
         printf("PCRE compilation failed: %s\n", error);
     }
