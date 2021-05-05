@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     BLOCK root = {"", "", NULL, entities};
     ENTITY root_entity = {NULL, &root};
 
-    FILE* output_file = fopen(argv[1], "w");
+    FILE* output_file = fopen(argv[2], "w");
     Print(&root_entity, -1, output_file);
     printf("max nesting: %d", GetMaxNestingOfLoops(&root_entity));
     fclose(output_file);

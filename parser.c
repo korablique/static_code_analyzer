@@ -20,7 +20,7 @@ bool CompileRegexes() {
     const char* error = (char*) malloc(sizeof(char) * ERROR_MSG_SIZE);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
     char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
-    char block_pattern2[] = "[^A-Za-z0-9_](else|do)[^A-Za-z0-9_]|^(else|do)[^A-Za-z0-9_]";
+    char block_pattern2[] = "[^A-Za-z0-9_]?(else|do)[^A-Za-z0-9_]|^(else|do)[^A-Za-z0-9_]|}else";
     char block_pattern[PATTERN_SIZE];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s", block_pattern1, block_pattern2);
 
