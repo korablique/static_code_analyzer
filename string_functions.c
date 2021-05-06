@@ -1,7 +1,4 @@
 #include "string_functions.h"
-#include <stdlib.h>
-#include <memory.h>
-#include <stdbool.h>
 
 /**
  * return substring as [)
@@ -99,4 +96,21 @@ int Find(char symbol, char* source, int start_index) {
         }
     }
     return -1;
+}
+
+bool IsNumber(char *string) {
+    // если в начале тире - передать туда подстроку без тире
+    if (string[0] == '-' && strlen(string) > 1) {
+        return IsNumber(&string[1]);
+    } else {
+        // если в начале не тире
+        for (int i = 0; i < strlen(string); ++i) {
+            if (isdigit(string[i]) || string[i] == '.') {
+                continue;
+            } else {
+                return false;
+            }
+        }
+    }
+    return true;
 }

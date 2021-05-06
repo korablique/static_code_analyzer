@@ -7,13 +7,14 @@
 #include "block.h"
 #include "print.h"
 #include "parser.h"
+#include "code_analyzer.h"
 
 void RunStaticAnalyser(char *input, char* file_path) {
     VectorEntity entities = GetEntities(input, INT_MAX);
     BLOCK root = {"", "", NULL, entities};
     ENTITY root_entity = {NULL, &root};
     FILE* file = fopen(file_path, "w");
-    PrintImpl(&root_entity, -1, file, false);
+    PrintImpl(&root_entity, -1, file, false, true);
     fclose(file);
 }
 
@@ -146,7 +147,21 @@ void DoWhileOneLineTest() {
     }
 }
 
+void HasEndlessLoopsTest() {
+    char input[] = "int main() {\n\twhile(10) {\n\t\tif (condition) {\n\t\t\tbreak;\n\t\t}\n\t}\n\n\twhile(0) {\n\t\twhile(1) {\n\t\t\tprintf(\"1\");\n\t\t}\n\t}\n\treturn 0;\n}";
+    VectorEntity entities = GetEntities(input, INT_MAX);
+    BLOCK root = {"", "", NULL, entities};
+    ENTITY root_entity = {NULL, &root};
+    VectorEntity endless_blocks = HasEndlessLoops(&root_entity);
+    int expected = 1;
+    if (endless_blocks.size != 1) {
+        printf("HasEndlessLoopsTest failed: expected %d endless loops, found %d\n", expected, endless_blocks.size);
+        abort();
+    }
+}
+
 void Test() {
+    printf("Run tests\n");
     ReplaceTest();
     SkipSpacesTest();
     ReplaceExceptTest();
@@ -154,5 +169,6 @@ void Test() {
     ElseTest();
     OneLineBlocksTest();
     DoWhileOneLineTest();
+    HasEndlessLoopsTest();
     printf("Tests passed\n");
 }

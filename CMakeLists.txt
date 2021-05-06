@@ -12,7 +12,8 @@ add_executable(static_code_analyser
         string_functions.c string_functions.h
         test.c test.h
         parser.c parser.h
-        print.c print.h)
+        print.c print.h
+        code_analyzer.c code_analyzer.h)
 
 find_library(PCRE_LIBRARY pcre)
 target_link_libraries(static_code_analyser PRIVATE ${PCRE_LIBRARY} m)

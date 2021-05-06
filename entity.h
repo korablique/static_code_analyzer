@@ -10,12 +10,10 @@ struct Block;
 /**
  * Both statement and block cannot be defined at the same time.
  * Either the first is NULL or the second.
- * @field was - needed for DFS
  */
 typedef struct Entity {
     struct Statement* statement;
     struct Block* block;
-    bool was;
 }ENTITY;
 
 int EntityComparator(ENTITY* lhs, ENTITY* rhs);

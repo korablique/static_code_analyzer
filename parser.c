@@ -169,7 +169,7 @@ VectorEntity GetEntities(char* string, int max_entities) {
                 block->tail = NULL;
             }
 
-            char *block_str = Substring(string, block_start_index, block_inside_end_i); // todo: probably don't need
+            char *block_str = Substring(string, block_start_index, block_inside_end_i);
             block->string = (char *) malloc(sizeof(char) * strlen(block_str));
             strcpy(block->string, block_str);
 

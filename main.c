@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "print.h"
 #include "test.h"
+#include "code_analyzer.h"
 
 int GetMaxNestingOfLoops(ENTITY* node) {
     if (node->statement != NULL) {
@@ -22,13 +23,12 @@ int GetMaxNestingOfLoops(ENTITY* node) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 1) {
+    if (argc < 2) {
         printf("File path should be in command line\n");
         abort();
     }
 
-    if (argc > 2 && strcmp(argv[2], "test") == 0) {
-        printf("Run tests\n");
+    if (argc > 3 && strcmp(argv[3], "test") == 0) {
         Test();
         return 0;
     }
@@ -46,14 +46,24 @@ int main(int argc, char **argv) {
     input_string[file_size] = 0; // make null terminated C string
     ReplaceExcept(input_string, '\n', ' ');
 
-    // print
+    // output
     VectorEntity entities = GetEntities(input_string, INT_MAX);
     BLOCK root = {"", "", NULL, entities};
     ENTITY root_entity = {NULL, &root};
 
+    VectorEntity blocks_with_endless_loop = HasEndlessLoops(&root_entity);
+    int endless_blocks_number = blocks_with_endless_loop.size;
+    if (endless_blocks_number > 0) {
+        printf("Probably there are %d endless loops:\n", endless_blocks_number);
+        for (int i = 0; i < endless_blocks_number; ++i) {
+            ENTITY entity = GetFromVectorEntity(&blocks_with_endless_loop, i);
+            PrintToLog(&entity, 0);
+        }
+    }
+
     FILE* output_file = fopen(argv[2], "w");
-    Print(&root_entity, -1, output_file);
-    printf("max nesting: %d", GetMaxNestingOfLoops(&root_entity));
+    PrintToFile(&root_entity, -1, output_file);
+    printf("Max loops nesting: %d", GetMaxNestingOfLoops(&root_entity));
     fclose(output_file);
     return 0;
 }
