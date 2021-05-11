@@ -1,5 +1,16 @@
 #include "code_analyzer.h"
 
+int GetMaxNestingOfLoops(ENTITY* node) {
+    if (node->statement != NULL) {
+        return 0;
+    }
+    int answer = 0;
+    for (int i = 0; i < node->block->children.size; ++i) {
+        answer = fmax(answer, IsLoop(node->block) + GetMaxNestingOfLoops(&node->block->children.array[i]));
+    }
+    return answer;
+}
+
 /**
  * @param node pointer to block to start with
  * @return block vector with endless loops

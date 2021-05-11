@@ -6,9 +6,9 @@ set(CMAKE_C_STANDARD 11)
 add_executable(static_code_analyser
         main.c
         block.c block.h
-        statement.c statement.h
+        statement.h
         entity.c entity.h
-        cvector.c cvector.h
+        cvector.h
         string_functions.c string_functions.h
         test.c test.h
         parser.c parser.h

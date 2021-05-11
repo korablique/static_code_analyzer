@@ -26,9 +26,6 @@ void Replace(char* string, char old_char, char new_char) {
 
 /**
  * Replace all newlines except after strings starting with #
- * @param source
- * @param old_char
- * @param new_char
  */
 void ReplaceExcept(char* source, char old_char, char new_char) {
     bool need_replace = true;

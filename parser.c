@@ -16,6 +16,7 @@ bool CompileRegexes() {
     // compile regex statements
     const char* error = (char*) malloc(sizeof(char) * ERROR_MSG_SIZE);  // Where to put an error message
     int error_offset;    // Offset in pattern where error was found
+
     char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
     // pattern for "else" and do-while
     char block_pattern2[] = "[^A-Za-z0-9_]?(else|do)[^A-Za-z0-9_]|^(else|do)[^A-Za-z0-9_]|}else";
@@ -28,17 +29,20 @@ bool CompileRegexes() {
 
     compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
     if (compiled_block_regex == NULL) {
-        printf("PCRE block compilation failed: %s\n", error); // TODO может тогда вернуть false?
+        printf("PCRE block compilation failed: %s\n", error);
+        abort();
     }
 
     compiled_statement_regex = pcre_compile(statement_pattern, 0, &error, &error_offset, NULL);
     if (compiled_statement_regex == NULL) {
         printf("PCRE statement compilation failed: %s\n", error);
+        abort();
     }
 
     compiled_directive_regex = pcre_compile(directive_pattern, 0, &error, &error_offset, NULL);
     if (compiled_directive_regex == NULL) {
         printf("PCRE directive compilation failed: %s\n", error);
+        abort();
     }
 
     return true;
@@ -86,8 +90,6 @@ VectorEntity GetEntities(char* string, int max_entities) {
         int statement_end_index = statement_result[1];
         // skip spaces at the start of statement
         statement_start_index = SkipSpaces(string, statement_start_index, statement_end_index);
-        statement_start_index = Skip('}', string, statement_start_index, statement_end_index); // TODO костыль невероятный
-        statement_start_index = SkipSpaces(string, statement_start_index, statement_end_index);
 
         int directive_start_index = -1;
         int directive_end_index = -1;
@@ -102,7 +104,7 @@ VectorEntity GetEntities(char* string, int max_entities) {
         bool is_statement = statement_start_index < block_start_index || block_result_code < 0;
         bool is_block = statement_start_index >= block_start_index || statement_result_code < 0;
         if (is_directive) {
-            // обрабатывается как statement TODO убрать дублирование
+            // handle as statement TODO убрать дублирование
             char* directive_str = Substring(string, directive_start_index, directive_end_index);
             STATEMENT* directive = (STATEMENT*) malloc(sizeof(STATEMENT));
             directive->string = directive_str;
@@ -140,9 +142,6 @@ VectorEntity GetEntities(char* string, int max_entities) {
             strcpy(block->head, head);
 
             // find end of block
-            // смотрим, если все пробелы игнорировать, что первое - открывающаяся фигурная скобка или другой символ
-            // если открывающаяся фигурная скобка, то конец блока - это парная закрывающая фигурная скобка
-            // если другой символ, то тело блока - это всё до первой точки с запятой
             int after_head_index = SkipSpaces(string, block_head_end_index, strlen(string));
             char next_after_head = string[after_head_index];
             // find inside of block

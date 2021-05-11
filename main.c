@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <limits.h>
 #include "entity.h"
 #include "block.h"
@@ -10,17 +9,6 @@
 #include "print.h"
 #include "test.h"
 #include "code_analyzer.h"
-
-int GetMaxNestingOfLoops(ENTITY* node) {
-    if (node->statement != NULL) {
-        return 0;
-    }
-    int answer = 0;
-    for (int i = 0; i < node->block->children.size; ++i) {
-        answer = fmax(answer, IsLoop(node->block) + GetMaxNestingOfLoops(&node->block->children.array[i]));
-    }
-    return answer;
-}
 
 int main(int argc, char **argv) {
     if (argc < 2) {
