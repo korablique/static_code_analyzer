@@ -20,7 +20,7 @@ bool CompileRegexes() {
     char block_pattern1[] = "[^A-Za-z0-9_]?(for|while|else if|if|int main) *\\(";
     // pattern for "else" and do-while
     char block_pattern2[] = "[^A-Za-z0-9_]?(else|do)[^A-Za-z0-9_]|^(else|do)[^A-Za-z0-9_]|}else";
-    char function_pattern[] = "(unsigned |long )?(void|int|float|double|char) +[A-Za-z0-9_]+ *\\(";
+    char function_pattern[] = "(unsigned |long )?(void|int|float|double|char|bool)\\*? +[A-Za-z0-9_]+ *\\(";
     char block_pattern[PATTERN_SIZE];
     snprintf(block_pattern, sizeof block_pattern, "%s|%s|%s", block_pattern1, block_pattern2, function_pattern);
 
@@ -85,6 +85,9 @@ VectorEntity GetEntities(char* string, int max_entities) {
 
         int block_start_index = block_result[0]; // TODO если блок не найден, можно задать бесконечность
         block_start_index = SkipSpaces(string, block_start_index, strlen(string));
+        if (block_result < 0) {
+            block_start_index = INT_MAX;
+        }
 
         int statement_start_index = statement_result[0];
         int statement_end_index = statement_result[1];
@@ -104,7 +107,7 @@ VectorEntity GetEntities(char* string, int max_entities) {
         bool is_statement = statement_start_index < block_start_index || block_result_code < 0;
         bool is_block = statement_start_index >= block_start_index || statement_result_code < 0;
         if (is_directive) {
-            // handle as statement TODO убрать дублирование
+            // handle as statement
             char* directive_str = Substring(string, directive_start_index, directive_end_index);
             STATEMENT* directive = (STATEMENT*) malloc(sizeof(STATEMENT));
             directive->string = directive_str;
@@ -138,8 +141,9 @@ VectorEntity GetEntities(char* string, int max_entities) {
                 head = GetKeyWord(&string[block_start_index]);
                 block_head_end_index = block_start_index + strlen(head);
             }
-            block->head = (char *) malloc(sizeof(char) * strlen(head));
+            block->head = (char *) malloc(sizeof(char) * strlen(head) + 1); // FIXME сделан +1 и след две строчки
             strcpy(block->head, head);
+            block->head[strlen(head)] = '\0';
 
             // find end of block
             int after_head_index = SkipSpaces(string, block_head_end_index, strlen(string));
@@ -157,20 +161,23 @@ VectorEntity GetEntities(char* string, int max_entities) {
 
             // if head == "do", add tail to block
             if (strcmp(head, "do") == 0) {
-                // всё что после do до ";" - это tail
+                // tail is after "do" till ';'
                 int tail_start_i = SkipSpaces(string, block_inside_end_i, strlen(string));
                 int tail_end_i = Find(';', string, tail_start_i) + 1;
                 char* tail = Substring(string, tail_start_i, tail_end_i);
-                block->tail = (char*) malloc(sizeof(char) * strlen(tail));
+                block->tail = (char*) malloc(sizeof(char) * strlen(tail) + 1);
                 strcpy(block->tail, tail);
+                block->tail[strlen(tail)] = '\0';
+
                 block_inside_end_i = tail_end_i;
             } else {
                 block->tail = NULL;
             }
 
             char *block_str = Substring(string, block_start_index, block_inside_end_i);
-            block->string = (char *) malloc(sizeof(char) * strlen(block_str));
+            block->string = (char *) malloc(sizeof(char) * strlen(block_str) + 1);
             strcpy(block->string, block_str);
+            block->string[strlen(block_str)] = '\0';
 
             start_i = block_inside_end_i;
 

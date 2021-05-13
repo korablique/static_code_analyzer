@@ -40,7 +40,9 @@ VectorEntity HasEndlessLoops(ENTITY* node) {
                     pcre* compiled_break_regex = pcre_compile(break_pattern, 0, &error, &error_offset, NULL);
                     if (compiled_break_regex == NULL) {
                         printf("PCRE compilation failed: %s\n", error);
+                        abort();
                     }
+                    free(error);
 
                     int start_i = 0;
                     int result_size = 3*3;
