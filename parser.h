@@ -6,6 +6,7 @@
 #include <string.h>
 #include <pcre.h>
 #include <stdbool.h>
+#include <limits.h>
 #include "entity.h"
 #include "block.h"
 #include "statement.h"

@@ -33,6 +33,11 @@ void ReplaceExcept(char* source, char old_char, char new_char) {
         if (source[i] == '#') {
             need_replace = false;
         }
+
+        if (source[i] == '/' && i < strlen(source) - 1 && source[i + 1] == '/') {
+            need_replace = false;
+        }
+
         if (source[i] == old_char) {
             if (need_replace) {
                 source[i] = new_char;

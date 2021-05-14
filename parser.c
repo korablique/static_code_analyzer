@@ -1,4 +1,3 @@
-#include <limits.h>
 #include "parser.h"
 
 #define ERROR_MSG_SIZE 200
@@ -6,7 +5,7 @@
 
 pcre *compiled_block_regex = NULL;
 pcre *compiled_statement_regex = NULL;
-pcre *compiled_directive_regex = NULL;
+pcre *compiled_directive_or_comment_regex = NULL;
 
 bool CompileRegexes() {
     if (compiled_block_regex != NULL) {
@@ -25,7 +24,8 @@ bool CompileRegexes() {
     snprintf(block_pattern, sizeof block_pattern, "%s|%s|%s", block_pattern1, block_pattern2, function_pattern);
 
     char statement_pattern[] = "[^;]+;";
-    char directive_pattern[] = "^( |\\t)*#[A-Za-z]";
+
+    char directive_or_comment_pattern[] = "^( |\\t)*#[A-Za-z]|^( |\\t)*//";
 
     compiled_block_regex = pcre_compile(block_pattern, 0, &error, &error_offset, NULL);
     if (compiled_block_regex == NULL) {
@@ -39,8 +39,8 @@ bool CompileRegexes() {
         abort();
     }
 
-    compiled_directive_regex = pcre_compile(directive_pattern, 0, &error, &error_offset, NULL);
-    if (compiled_directive_regex == NULL) {
+    compiled_directive_or_comment_regex = pcre_compile(directive_or_comment_pattern, 0, &error, &error_offset, NULL);
+    if (compiled_directive_or_comment_regex == NULL) {
         printf("PCRE directive compilation failed: %s\n", error);
         abort();
     }
@@ -51,10 +51,10 @@ bool CompileRegexes() {
 void FreeRegexes() {
     pcre_free(compiled_block_regex);
     pcre_free(compiled_statement_regex);
-    pcre_free(compiled_directive_regex);
+    pcre_free(compiled_directive_or_comment_regex);
     compiled_block_regex = NULL;
     compiled_statement_regex = NULL;
-    compiled_directive_regex = NULL;
+    compiled_directive_or_comment_regex = NULL;
 }
 
 VectorEntity GetEntities(char* string, int max_entities) {
@@ -67,7 +67,7 @@ VectorEntity GetEntities(char* string, int max_entities) {
         int result_size = 33; // a multiple of 3
         int block_result[result_size];
         int statement_result[result_size];
-        int directive_result[result_size];
+        int directive_or_comment_result[result_size];
         int statement_result_code = pcre_exec(compiled_statement_regex, NULL,
                                               string, strlen(string),
                                               start_i, 0,
@@ -78,15 +78,17 @@ VectorEntity GetEntities(char* string, int max_entities) {
                                           start_i, 0,
                                           block_result, result_size);
 
-        int directive_result_code = pcre_exec(compiled_directive_regex, NULL,
-                                              &string[start_i], strlen(&string[start_i]),
-                                              0, 0,
-                                              directive_result, result_size);
+        int directive_or_comment_result_code = pcre_exec(compiled_directive_or_comment_regex, NULL,
+                                                         &string[start_i], strlen(&string[start_i]),
+                                                         0, 0,
+                                                         directive_or_comment_result, result_size);
 
-        int block_start_index = block_result[0]; // TODO если блок не найден, можно задать бесконечность
-        block_start_index = SkipSpaces(string, block_start_index, strlen(string));
+        int block_start_index;
         if (block_result < 0) {
             block_start_index = INT_MAX;
+        } else {
+            block_start_index = block_result[0];
+            block_start_index = SkipSpaces(string, block_start_index, strlen(string));
         }
 
         int statement_start_index = statement_result[0];
@@ -94,28 +96,28 @@ VectorEntity GetEntities(char* string, int max_entities) {
         // skip spaces at the start of statement
         statement_start_index = SkipSpaces(string, statement_start_index, statement_end_index);
 
-        int directive_start_index = -1;
-        int directive_end_index = -1;
-        if (directive_result_code > 0) {
-            directive_start_index = directive_result[0] + start_i;
-            directive_start_index = SkipSpaces(string, directive_start_index, strlen(string));
-            directive_end_index = Find('\n', string, directive_start_index);
+        int directive_or_comment_start_index = -1;
+        int directive_or_comment_end_index = -1;
+        if (directive_or_comment_result_code > 0) {
+            directive_or_comment_start_index = directive_or_comment_result[0] + start_i;
+            directive_or_comment_start_index = SkipSpaces(string, directive_or_comment_start_index, strlen(string));
+            directive_or_comment_end_index = Find('\n', string, directive_or_comment_start_index);
         }
 
         // check if there are statement and block or just 'for'
-        bool is_directive = directive_result_code > 0 && directive_start_index < block_start_index;
+        bool is_directive_or_comment = directive_or_comment_result_code > 0 && directive_or_comment_start_index < block_start_index;
         bool is_statement = statement_start_index < block_start_index || block_result_code < 0;
         bool is_block = statement_start_index >= block_start_index || statement_result_code < 0;
-        if (is_directive) {
+        if (is_directive_or_comment) {
             // handle as statement
-            char* directive_str = Substring(string, directive_start_index, directive_end_index);
-            STATEMENT* directive = (STATEMENT*) malloc(sizeof(STATEMENT));
-            directive->string = directive_str;
+            char* statement_str = Substring(string, directive_or_comment_start_index, directive_or_comment_end_index);
+            STATEMENT* statement = (STATEMENT*) malloc(sizeof(STATEMENT));
+            statement->string = statement_str;
             ENTITY* entity = (ENTITY*) malloc(sizeof(ENTITY));
-            entity->statement = directive;
+            entity->statement = statement;
             entity->block = NULL;
             PushBackVectorEntity(&vector_entity, *entity);
-            start_i = directive_end_index + 1; // after '\n'
+            start_i = directive_or_comment_end_index + 1; // after '\n'
         } else if (is_statement) {
             char* statement_str = Substring(string, statement_start_index, statement_end_index);
             STATEMENT* statement = (STATEMENT*) malloc(sizeof(STATEMENT));
@@ -141,7 +143,7 @@ VectorEntity GetEntities(char* string, int max_entities) {
                 head = GetKeyWord(&string[block_start_index]);
                 block_head_end_index = block_start_index + strlen(head);
             }
-            block->head = (char *) malloc(sizeof(char) * strlen(head) + 1); // FIXME сделан +1 и след две строчки
+            block->head = (char *) malloc(sizeof(char) * strlen(head) + 1);
             strcpy(block->head, head);
             block->head[strlen(head)] = '\0';
 
