@@ -32,7 +32,7 @@ VectorEntity HasEndlessLoops(ENTITY* node) {
                 GetBounds(current_block->head, 0, '(', ')', &condition_start_i, &condition_end_i); // get indices of condition
                 --condition_end_i; // to skip ')'
                 char* condition = Substring(current_block->head, condition_start_i, condition_end_i);
-                if (IsNumber(condition) && atoi(condition)) { // TODO можно потом сделать atof, чтоб для нецелых чисел тоже работало
+                if (IsNumber(condition) && fabs(atof(condition)) > 1e-6) {
                     // find break
                     char break_pattern[] = "[^A-Za-z0-9_]break;";
                     const char* error = (char*) malloc(sizeof(char) * 200);
